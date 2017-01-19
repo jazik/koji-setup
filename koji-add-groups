@@ -1,0 +1,100 @@
+#! /bin/bash
+
+DIST_BUILD=dist-foo-build
+
+# Add Group livemedia-build, core and anaconda-tools to build live media
+koji add-group ${DIST_BUILD} livemedia-build
+koji add-group-pkg ${DIST_BUILD} livemedia-build \
+	bash				\
+	coreutils			\
+	glibc-all-langpacks		\
+	lorax-lmc-novirt		\
+	selinux-policy-targeted		\
+	shadow-utils			\
+	util-linux
+
+koji add-group ${DIST_BUILD} core
+koji add-group-pkg ${DIST_BUILD} core \
+	audit				\
+	authconfig			\
+	basesystem			\
+	bash				\
+	coreutils			\
+	cronie				\
+	curl				\
+	dhcp-client			\
+	dnf				\
+	dnf-plugins-core		\
+	dnf-yum				\
+	dracut-config-generic		\
+	dracut-config-rescue		\
+	e2fsprogs			\
+	filesystem			\
+	firewalld			\
+	glibc				\
+	grubby				\
+	hostname			\
+	initial-setup			\
+	initscripts			\
+	iproute				\
+	iputils				\
+	kbd				\
+	less				\
+	man-db				\
+	ncurses				\
+	NetworkManager			\
+	openssh-clients			\
+	openssh-server			\
+	parted				\
+	passwd				\
+	plymouth			\
+	policycoreutils			\
+	ppc64-utils			\
+	procps-ng			\
+	rootfiles			\
+	rpm				\
+	selinux-policy-targeted		\
+	setup				\
+	shadow-utils			\
+	sudo				\
+	systemd				\
+	uboot-images-armv7		\
+	uboot-tools			\
+	util-linux			\
+	vim-minimal
+
+koji add-group ${DIST_BUILD} anaconda-tools
+koji add-group-pkg ${DIST_BUILD} anaconda-tools \
+	authconfig			\
+	btrfs-progs			\
+	chrony				\
+	cryptsetup			\
+	device-mapper-multipath		\
+	dmraid				\
+	dosfstools			\
+	dracut-network			\
+	e2fsprogs			\
+	efibootmgr			\
+	extlinux-bootloader		\
+	fcoe-utils			\
+	firewalld			\
+	gfs2-utils			\
+	glibc-all-langpacks		\
+	grub2				\
+	grub2-efi			\
+	hfsplus-tools			\
+	iscsi-initiator-utils		\
+	kexec-tools-anaconda-addon	\
+	lvm2				\
+	mactel-boot			\
+	mdadm				\
+	ntfsprogs			\
+	realmd				\
+	reiserfs-utils			\
+	s390utils			\
+	s390utils-base			\
+	shim				\
+	syslinux-extlinux		\
+	teamd				\
+	xfsprogs
+

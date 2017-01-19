@@ -12,6 +12,8 @@ elif [ "$1" == "rfr-rawhide" ]; then
     TYPE=rfr-rawhide
 elif [ "$1" == "rfr-devel" ]; then
     TYPE=rfr-devel
+elif [ "$1" == "f" ]; then
+    TYPE=f
 fi
 VERSION=$2
 
