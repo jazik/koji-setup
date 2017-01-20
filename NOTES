@@ -64,7 +64,7 @@ Prepare
 - disable selinux in /etc/selinux/config
   to get rid of problems with permissions and server accesing files
   getenforce
-- for livemedia channel we need:
+- for livemedia channel we need (what as picdio??):
   dnf install python-kickstart picdio
 - for image channel need to install imagefactory
 

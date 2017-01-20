@@ -6,7 +6,8 @@ install_dir=$PWD
 mkdir originals
 backup_dir=$PWD/originals
 echo "--> Installing PreReqs"
-dnf install -y httpd mod_ssl postgresql-server mod_wsgi mock util-linux rpm-build createrepo koji koji-hub koji-web koji-builder koji-utils policycoreutils checkpolicy policycoreutils-python policycoreutils-python-utils python-kickstart picdio imagefactory
+dnf install -y httpd mod_ssl postgresql-server mod_wsgi mock util-linux rpm-build createrepo koji koji-hub koji-web koji-builder koji-utils policycoreutils checkpolicy policycoreutils-python policycoreutils-python-utils python-kickstart 
+dnf install -y oz imagefactory imagefactory-plugins-TinMan imagefactory-plugins-vSphere imagefactory-plugins-ovfcommon imagefactory-plugins-Docker imagefactory-plugins imagefactory-plugins-OVA imagefactory-plugins-RHEVM python-psphere VMDKstream pykickstart
 
 # PyGreSQL downgrade as 5.x.y breaks the SQL query
 # https://pagure.io/koji/issue/230
@@ -72,6 +73,8 @@ cd $PWD
 
 echo "--> Setup PosgreSQL"
 echo " --> Create DB"
+mkdir -p /var/lib/pgsql/data 
+chown -R postgres:postgres /var/lib/pgsql
 su - postgres -c "PGDATA=/var/lib/pgsql/data initdb"
 echo " --> Starting PgSql"
 systemctl enable postgresql
