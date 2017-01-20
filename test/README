@@ -1,0 +1,8 @@
+Config for creating nocloud cloud-init configuration for Fedora cloud image.
+Can be run as:
+
+git clone https://github.com/larsks/virt-utils.git
+#printf "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
+virt-utils/create-config-drive --user-data user-data config.iso
+virt-install -r 512 -n test --disk path=Fedora-25-cloud-base-1-1.x86_64.qcow2 --import --disk path=config.iso --graphics vnc
+

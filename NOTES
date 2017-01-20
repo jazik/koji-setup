@@ -1,0 +1,295 @@
+Links (accessed January 2017)
+=============================
+
+http://nts.strzibny.name/how-to-set-up-shared-folders-in-virt-manager/
+https://virt-manager.org/
+https://getfedora.org/en/server/download/
+
+- rpm repositories
+https://rpmfusion.org/
+https://fedoraproject.org/wiki/EPEL
+https://src.fedoraproject.org/cgit/rpms/bash.git/
+
+- kickstart for fedora
+https://pagure.io/fedora-kickstarts
+
+- articles
+http://www.devops-blog.net/koji/koji-rpm-build-system-configuration-and-usage
+http://miroslav.suchy.cz/blog/archives/2013/10/09/how_to_set_up_koji_for_scl/
+
+- used partly for configurations
+https://docs.pagure.org/koji/server_howto/
+
+- another set of scripts
+https://github.com/Ascendos/Ascendos
+
+- related links
+https://www.mankier.com/1/mksquashfs
+https://dracut.wiki.kernel.org/index.php/Main_Page
+https://github.com/clalancette/oz/wiki/oz-install
+https://en.wikipedia.org/wiki/Anaconda_(installer)
+https://pagure.io/fork/till/releng/blob/master/f/scripts/branching/make-koji-release-tags
+https://lists.fedorahosted.org/archives/list/koji-devel@lists.fedorahosted.org/thread/6CJXN4JQ36O4GOIJKGPIBRGM4FK2VHFY/
+https://pagure.io/koji/issue/84
+https://pagure.io/koji/issue/85
+http://www.devops-blog.net/koji/building-rpm-from-git-with-koji
+https://github.com/rpm-software-management/mock/wiki
+https://pagure.io/koji
+https://koji.fedoraproject.org/koji/tasks
+https://bodhi.fedoraproject.org/
+https://fedoraproject.org/wiki/Category:Package_Maintainers?rd=PackageMaintainers
+https://fedoraproject.org/wiki/Koji
+http://worknotes.readthedocs.io/en/latest/cloudimages.html
+https://koji.fedoraproject.org/koji/tasks?start=0&state=closed&view=flat&method=createImage&order=-id
+https://pagure.io/mash
+https://lists.fedoraproject.org/pipermail/buildsys/2011-January/003526.html
+
+
+Prepare
+=======
+- install Fedora 25 minimal 
+- root/rootme
+- set hostname
+  hostnamectl set-hostname koji.krkajda.net
+- remove firewall
+  systemctl disable firewalld
+  systemctl stop firewalld
+- install packages
+  dnf install -y postgresql-server mod_wsgi mock util-linux rpm-build createrepo koji koji-hub httpd mod_ssl koji-web koji-builder
+- add shared directory
+  http://nts.strzibny.name/how-to-set-up-shared-folders-in-virt-manager/
+  mkdir /koji_host
+  mount -t 9p -o trans=virtio /koji_host /koji_host
+  /koji_host   /koji_host    9p  trans=virtio,version=9p2000.L,rw    0   0
+- disable selinux in /etc/selinux/config
+  to get rid of problems with permissions and server accesing files
+  getenforce
+- for livemedia channel we need:
+  dnf install python-kickstart picdio
+- for image channel need to install imagefactory
+
+Install server
+=============
+- copy the koji-setup
+- run koji_install.sh
+
+[root@koji ~]# cp -r /koji_host/koji-setup .
+[root@koji ~]# cd koji-setup/
+
+- fill in the requested information 
+  be careful about cert Common Names!!
+
+
+Replicate a repo
+================
+
+su - kojiadmin
+koji add-tag dist-foo
+koji add-tag --parent dist-foo --arches "x86_64" dist-foo-build
+koji edit-tag dist-foo-build -x mock.package_manager=dnf
+koji add-external-repo -t dist-foo-build dist-f25-updates -p 0 http://ftp.fi.muni.cz/pub/linux/fedora/linux/updates/25/\$arch/
+koji add-external-repo -t dist-foo-build dist-f25-release -p 1 http://ftp.fi.muni.cz/pub/linux/fedora/linux/releases/25/Everything/\$arch/os/ 
+koji add-external-repo -t dist-foo-build dist-f25-rpmfusion-free-updates -p 2 http://mirror.vutbr.cz/rpmfusion/free/fedora/updates/25/\$arch/
+koji add-external-repo -t dist-foo-build dist-f25-rpmfusion-free-release -p 3 http://mirror.vutbr.cz/rpmfusion/free/fedora/releases/25/Everything/\$arch/os/
+koji add-external-repo -t dist-foo-build dist-f25-rpmfusion-nonfree-updates -p 4 http://mirror.vutbr.cz/rpmfusion/nonfree/fedora/updates/25/\$arch/
+koji add-external-repo -t dist-foo-build dist-f25-rpmfusion-nonfree-release -p 5 http://mirror.vutbr.cz/rpmfusion/nonfree/fedora/releases/25/Everything/\$arch/os/
+
+koji add-target dist-foo dist-foo-build
+koji add-group dist-foo-build build
+koji add-group dist-foo-build srpm-build
+koji add-group-pkg dist-foo-build build bash bzip2 coreutils cpio glibc diffutils fedora-release findutils gawk gcc gcc-c++ grep gzip info make patch redhat-rpm-config rpm-build sed shadow-utils tar unzip util-linux-ng which system-release
+koji add-group-pkg dist-foo-build srpm-build bash curl cvs system-release gnupg make redhat-rpm-config rpm-build shadow-utils python git subversion bzr tar
+koji regen-repo dist-foo-build
+
+
+Example build rpm and build image
+=================================
+koji spin-livemedia --scratch fedora-live 25 dist-foo x86_64 fedora-live-base.ks --ksurl="git+https://pagure.io/fedora-kickstarts.git?#f85bbb10ee3d4429684a6e855e08f6ad33621897"
+
+wget http://ftp.fi.muni.cz/pub/linux/fedora/linux/releases/25/Everything/source/tree/Packages/b/bash-4.3.43-4.fc25.src.rpm
+koji build --scratch dist-foo bash-4.3.43-4.fc25.src.rpm
+
+koji image-build \
+  Fedora-25-cloud-base 1 dist-foo \
+  http://ftp.fi.muni.cz/pub/linux/fedora/linux/releases/25/Everything/\$arch/os/ \
+  x86_64 \
+  --release=1 \
+  --distro=Fedora-20 \
+  --kickstart=fedora-cloud-base.ks \
+  --ksurl="git+https://pagure.io/fedora-kickstarts.git?#f85bbb10ee3d4429684a6e855e08f6ad33621897" \
+  --format=qcow2 \
+  --scratch \
+  --nowait \
+  --disk-size=2
+
+Requirements for building images
+================================
+https://docs.pagure.org/koji/image_build/
+http://imgfac.org/
+https://lists.centos.org/pipermail/centos-devel/2015-January/012612.html
+
+dnf install -y oz imagefactory imagefactory-plugins-TinMan imagefactory-plugins-vSphere imagefactory-plugins-ovfcommon imagefactory-plugins-Docker imagefactory-plugins imagefactory-plugins-OVA imagefactory-plugins-RHEVM python-psphere VMDKstream pykickstart
+
+vi /etc/oz/oz.cfg
+
+mkdir -p ~root/.psphere/templates
+vi ~root/.psphere/config.yaml
+
+?? is this needed?
+dnf install -y koji-vm
+
+[kojiadmin@koji fedora-kickstarts]$ koji image-build   Fedora-25-cloud-base 1 dist-foo   http://ftp.fi.muni.cz/pub/linux/fedora/linux/releases/25/Everything/\$arch/os/   x86_64   --release=1   --distro=Fedora-20   --kickstart=fedora-cloud-base.ks   --ksurl="git+https://pagure.io/fedora-kickstarts.git?#f85bbb10ee3d4429684a6e855e08f6ad33621897"   --format=qcow2   --scratch   --nowait   --disk-size=6 --repo="http://ftp.fi
+.muni.cz/pub/linux/fedora/linux/releases/25/Everything/\$arch/os/"
+
+If the local packages build in Koji are missing and --repo is not redirecting to some other place then
+the oz/imagefactory just fails with error refering to disk without OS. But in fact the kickstart script
+running by anaconda fails and the VM exits.
+Enable intel nested virtualization
+==================================
+https://ask.fedoraproject.org/en/question/80362/how-do-i-update-grub-in-fedora-23/
+https://fedoraproject.org/wiki/How_to_enable_nested_virtualization_in_KVM
+
+- open-stack cloud-init metadata creation
+http://blog.oddbit.com/2015/03/10/booting-cloud-images-with-libvirt/
+http://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html
+
+git clone https://github.com/larsks/virt-utils.git
+printf "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\n" > user-data
+virt-utils/create-config-drive --user-data user-data config.iso
+virt-install -r 512 -n test --disk path=Fedora-25-cloud-base-1-1.x86_64.qcow2 --import --disk path=config.iso --graphics vnc
+
+
+Certificates
+============
+
+mkdir /etc/pki/koji
+cp /koji_host/ssl.cnf /etc/pki/koji
+cd /etc/pki/koji/
+mkdir {certs,private,confs}
+touch index.txt
+echo 01 > serial
+openssl genrsa -out private/koji_ca_cert.key 2048
+openssl req -config ssl.cnf -new -x509 -days 3650 -key private/koji_ca_cert.key \
+-out koji_ca_cert.crt -extensions v3_ca
+
+cp /koji_host/gencert.sh /etc/pki/koji/.
+
+----> CN=koji.krkajda.net, OU=<kojihub|kojiweb>
+./gencert.sh kojihub
+./gencert.sh kojiweb
+
+----> CN=<name>, OU=<name>
+./gencert.sh kojira
+./gencert.sh kojid
+./gencert.sh kojiadmin
+
+
+Setup kojiadmin user
+====================
+
+adduser kojiadmin
+passwd -d kojiadmin
+
+su kojiadmin
+
+mkdir ~/.koji
+cp /etc/pki/koji/kojiadmin.pem ~/.koji/client.crt
+cp /etc/pki/koji/koji_ca_cert.crt ~/.koji/clientca.crt
+cp /etc/pki/koji/koji_ca_cert.crt ~/.koji/serverca.crt
+
+Initialize database
+===================
+
+su - postgres -c "PGDATA=/var/lib/pgsql/data initdb"
+systemctl enable postgresql
+systemctl start postgresql
+
+
+Setup koji user and database
+============================
+
+useradd koji
+passwd koji
+
+su - postgres
+createuser --no-superuser --no-createrole --no-createdb koji
+createdb -O koji koji
+psql -c "alter user koji with encrypted password 'koji';"
+logout
+su - koji
+psql koji koji < /usr/share/doc/koji*/docs/schema.sql
+logout
+
+Database config
+===============
+
+cp /koji_host/pg_hba.conf /var/lib/pgsql/data/pg_hba.conf
+systemctl reload postgresql
+
+su - koji
+psql
+insert into users (name, status, usertype) values ('kojiadmin', 0, 0);
+insert into user_perms (user_id, perm_id, creator_id) values (1, 1, 1);
+\q
+logout
+
+cp /koji_host/postgresql.conf /var/lib/pgsql/data/postgresql.conf 
+systemctl restart postgresql
+
+
+Webserver koji-hub configuration
+================================
+
+cp /koji_host/httpd.conf /etc/httpd/conf/httpd.conf
+cp /koji_host/kojihub.conf /etc/httpd/conf.d/kojihub.conf
+cp /koji_host/ssl.conf /etc/httpd/conf.d/ssl.conf
+cp /koji_host/hub.conf /etc/koji-hub/hub.conf
+
+
+Create filesystem
+=================
+
+cd /mnt
+mkdir koji
+cd koji
+mkdir {packages,repos,work,scratch}
+cd ..
+chown -R apache.apache koji
+
+SELinux setup
+=============
+
+setsebool -P httpd_can_network_connect_db=1 allow_httpd_anon_write=1
+chcon -R -t public_content_rw_t /mnt/koji/*
+
+Start web server
+================
+
+systemctl enable httpd
+systemctl status httpd
+
+CLI access
+==========
+
+cp /koji_host/koji.conf /etc/koji.conf
+su - kojiadmin
+koji moshimoshi
+
+
+Configure kojiweb
+=================
+
+cp /koji_host/kojiweb.conf /etc/httpd/conf.d/kojiweb.conf
+cp /koji_host/web.conf /etc/kojiweb/web.conf
+
+Koji Daemon builder
+===================
+
+su - kojiadmin
+koji add-host koji.krkajda.net i386 x86_64
+logout
+cp /koji_host/kojid.conf /etc/kojid/kojid.conf
+
+su - kojiadmin
+koji add-host-to-channel koji.krkajda.net createrepo
+logout
